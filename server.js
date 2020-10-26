@@ -27,6 +27,16 @@ app.get('/location', (req, res) => {
   res.json(location);
 });
 
+app.get('/weather', (req, res) => {
+  const wetData = require('./data/weather.json');
+  let weather = [];
+  wetData.data.forEach(Data => {
+    console.log(Data);
+    weather.push(new Weather(Data));
+  });
+  res.json(weather);
+});
+
 
 app.use('*', (req, res) => {
   res.status(404).send('Error');
@@ -36,9 +46,14 @@ app.use('*', (req, res) => {
 
 function Location(city, locationData) {
   this.search_query = city;
-  this.displayName = locationData.display_name;
+  this.formatted_query = locationData.display_name;
   this.latitude = locationData.lat;
   this.longitude = locationData.lon;
+}
+
+function Weather(weatherData) {
+  this.forecast = weatherData.weather.description;
+  this.time = weatherData.datetime;
 }
 
 
