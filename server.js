@@ -29,7 +29,6 @@ app.get('/location', (req, res) => {
 
 app.get('/weather', (req, res) => {
   const wetData = require('./data/weather.json');
-  // console.log(wetData.data.datetime);
   let weather = [];
   wetData.data.forEach(Data => {
     console.log(Data);
