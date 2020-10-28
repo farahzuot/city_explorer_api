@@ -31,14 +31,15 @@ app.get('/weather', weatherPage);
 app.get('/trails',trailsHandler);
 //---------
 
-app.get('/get-locations', (req, res) => {
-  const location = 'SELECT * FROM location ;';
-  client.query(location).then(result => {
-    res.status(200).json(result.rows);
-  });
-});
+// app.get('/get-locations', (req, res) => {
+//   const location = 'SELECT * FROM location ;';
+//   client.query(location).then(result => {
+//     res.status(200).json(result.rows);
+//   });
+// });
 
-app.get('/add-location',locationHndler);
+// app.get('/add-location',locationHndler);
+
 
 app.use('*', (req, res) => {
   res.status(404).send('Error');
@@ -58,6 +59,7 @@ function Weather(weatherData) {
   this.forecast = weatherData.weather.description;
   this.time = weatherData.datetime;
 }
+
 
 // Trail constructor
 function Trail(trailObj){
@@ -91,25 +93,52 @@ function homePage(req, res) {
 
 
 function locationHndler(request, response) {
+  const location = 'SELECT * FROM location WHERE search_query=$1;';
   const city = request.query.city;
-  const url = `https://eu1.locationiq.com/v1/search.php?key=${GEOCODE_API_KEY}&q=${city}&format=json`;
-  let locationArr = [];
-  superagent.get(url).then(locationData => {
-    //console.log(locationData.body);
-    locationArr.push(new Location(city, locationData.body));
-    const newValues = 'INSERT INTO location (search_query,formatted_query,latitude,longitude) VALUES($1,$2,$3,$4);';
-    const saveValues = [locationArr[0].search_query, locationArr[0].formatted_query, locationArr[0].latitude, locationArr[0].longitude];
-    //response.json(location);
-    client.query(newValues, saveValues).then(data => {
-      response.status(200).json(data);
-    });
+  const safrvar = [city];
+  client.query(location, safrvar).then(result => {
+    if (!(result.rowCount === 0)) {
+      //console.log(result);
+      //console.log(result.rows[0].search_query);
+      // result.rows.forEach(value=>{
+      //   console.log(value.search_query);
+      //   //   if (value.search_query !== null){
+      //   //     console.log('whatttt');
+      //   //     response.status(200).json(result.rows);
+      //   //   }else{
+      //   //     console.log('pleassssse');
+      //   //   }
+      // });
+      response.status(200).json(result.rows[0]);
+    }
+    else {
+      console.log('after catch');
+      const url = `https://eu1.locationiq.com/v1/search.php?key=${GEOCODE_API_KEY}&q=${city}&format=json`;
+      let locationArr;
+      superagent.get(url).then(locationData => {
+        //console.log(locationData.body);
+        locationArr = new Location(city, locationData.body);
+        const newValues = 'INSERT INTO location (search_query,formatted_query,latitude,longitude) VALUES($1,$2,$3,$4);';
+        const saveValues = [locationArr.search_query, locationArr.formatted_query, locationArr.latitude, locationArr.longitude];
+        //response.json(location);
+        client.query(newValues, saveValues).then(() => {
+          //console.log(saveValues);
+          response.status(200).json(locationArr);
+        });
+      });
+    }
   });
 }
 
 
+
+
+
+
+
+
 function weatherPage(req, res) {
   const url = `https://api.weatherbit.io/v2.0/forecast/daily?lat=38.123&lon=-78.543&key=${WEATHER_API_KEY}`;
-
 
   superagent.get(url).then(weatherData => {
     let weather = weatherData.body.data.map(Data => {
@@ -139,3 +168,4 @@ client.connect().then(() => {
 }).catch(error => {
   console.log('error', error);
 });
+
