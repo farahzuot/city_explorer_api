@@ -7,7 +7,6 @@ const cors = require('cors');
 const superagent = require('superagent');
 const pg = require('pg');
 require('dotenv').config();
-// id = luruFlCZb1y-VfHE09JyeA;
 
 
 const PORT = process.env.PORT || 3000;
@@ -30,9 +29,8 @@ app.get('/location', locationHndler);
 
 app.get('/weather', weatherPage);
 
-//  trial Route
 app.get('/trails', trailsHandler);
-//---------
+
 app.get('/movies', moviesHandler);
 
 app.get('/yelps', yelpsHandler);
@@ -58,7 +56,6 @@ function Weather(weatherData) {
 }
 
 
-// Trail constructor
 function Trail(trailObj) {
   this.name = trailObj.name;
   this.location = trailObj.location;
@@ -89,18 +86,6 @@ function Yelp(yelpObj) {
   this.url = yelpObj.url;
 }
 
-
-//for(500) error
-// Location.prototype.errorHandler= function(){
-//   if(!this.formatted_query.includes(this.search_query)){
-//     error();
-//   }
-// };
-
-
-
-// helpers
-
 function homePage(req, res) {
 
   res.send('Hello! you are in the home page');
@@ -113,31 +98,16 @@ function locationHndler(request, response) {
   const safrvar = [city];
   client.query(location, safrvar).then(result => {
     if (!(result.rowCount === 0)) {
-      //console.log(result);
-      //console.log(result.rows[0].search_query);
-      // result.rows.forEach(value=>{
-      //   console.log(value.search_query);
-      //   //   if (value.search_query !== null){
-      //   //     console.log('whatttt');
-      //   //     response.status(200).json(result.rows);
-      //   //   }else{
-      //   //     console.log('pleassssse');
-      //   //   }
-      // });
       response.status(200).json(result.rows[0]);
     }
     else {
-      //console.log('after catch');
       const url = `https://eu1.locationiq.com/v1/search.php?key=${GEOCODE_API_KEY}&q=${city}&format=json`;
       let locationArr;
       superagent.get(url).then(locationData => {
-        //console.log(locationData.body);
         locationArr = new Location(city, locationData.body);
         const newValues = 'INSERT INTO location (search_query,formatted_query,latitude,longitude) VALUES($1,$2,$3,$4);';
         const saveValues = [locationArr.search_query, locationArr.formatted_query, locationArr.latitude, locationArr.longitude];
-        //response.json(location);
         client.query(newValues, saveValues).then(() => {
-          //console.log(saveValues);
           response.status(200).json(locationArr);
         });
       });
@@ -167,9 +137,7 @@ function weatherPage(req, res) {
 function trailsHandler(reqeust, response) {
   let lat=reqeust.query.latitude;
   let lon=reqeust.query.longitude;
-  // console.log(lat);
   const url = `https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${lon}&key=${TRAIL_API_KEY}`;
-  //console.log(url);
   superagent.get(url).then(trailsData => {
     let trail = trailsData.body.trails.map(Data => {
       return new Trail(Data);
@@ -184,13 +152,10 @@ function moviesHandler(request, response) {
   let region =request.query.search_query.slice(0,2).toUpperCase();
   const url = `https://api.themoviedb.org/3/movie/top_rated?api_key=${MOVIES}&region=${region}`;
   superagent.get(url).then(moviesData => {
-    //console.log(moviesData.body.results);
     let movie = moviesData.body.results.map(Data => {
-      //console.log(Data);
       return new Movie(Data);
     });
     response.json(movie);
-    //console.log(movie);
   }).catch(console.error);
 }
 
@@ -202,9 +167,8 @@ function yelpsHandler(request, response) {
   const latitude = request.query.latitude;
   console.log(region);
   const page=request.query.page;
-  let offset=5*(page-1);//for ordering
+  let offset=5*(page-1);
   const url = `https://api.yelp.com/v3/businesses/search`;
-  //passing parameters
   let queryParemeter={
     location:region,
     latitude:latitude,
@@ -216,11 +180,9 @@ function yelpsHandler(request, response) {
     format:'json'
   };
   superagent.get(url).query(queryParemeter).set('Authorization', `Bearer ${YELP}`).then(yelpsData => {
-    console.log(yelpsData.body);
     let yelps = yelpsData.body.businesses.map((value) => {
       return (new Yelp(value));
     });
-    console.log('hiiiiii');
     response.json(yelps);
   }).catch(console.error);
 }
