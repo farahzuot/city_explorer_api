@@ -87,7 +87,6 @@ function Yelp(yelpObj) {
   this.price = yelpObj.price;
   this.rating = yelpObj.rating;
   this.url = yelpObj.url;
-
 }
 
 
@@ -128,7 +127,7 @@ function locationHndler(request, response) {
       response.status(200).json(result.rows[0]);
     }
     else {
-      console.log('after catch');
+      //console.log('after catch');
       const url = `https://eu1.locationiq.com/v1/search.php?key=${GEOCODE_API_KEY}&q=${city}&format=json`;
       let locationArr;
       superagent.get(url).then(locationData => {
@@ -198,18 +197,33 @@ function moviesHandler(request, response) {
 
 
 function yelpsHandler(request, response) {
-  let region =request.query.search_query;
-  const url = `https://api.yelp.com/v3/businesses/search?term=delis&latitude=37.786882&longitude=-122.399972&key=${YELP}&location=${region}`;
-  superagent.get(url).then(yelpsData => {
-    // console.log(yelpsData.body);
-    let yelp = yelpsData.body.businesses.map(Data => {
-      console.log(Data);
-      return new Yelp(Data);
+  const region = request.query.search_query;
+  const longitude = request.query.longitude;
+  const latitude = request.query.latitude;
+  console.log(region);
+  const page=request.query.page;
+  let offset=5*(page-1);//for ordering
+  const url = `https://api.yelp.com/v3/businesses/search`;
+  //passing parameters
+  let queryParemeter={
+    location:region,
+    latitude:latitude,
+    longitude:longitude,
+    api_key:YELP,
+    offset:offset,
+    limit:5,
+    categories:'Restaurants',
+    format:'json'
+  };
+  superagent.get(url).query(queryParemeter).set('Authorization', `Bearer ${YELP}`).then(yelpsData => {
+    console.log(yelpsData.body);
+    let yelps = yelpsData.body.businesses.map((value) => {
+      return (new Yelp(value));
     });
-    response.json(yelp);
+    console.log('hiiiiii');
+    response.json(yelps);
   }).catch(console.error);
 }
-
 
 client.connect().then(() => {
   app.listen(PORT, () => console.log(`Listening to port ${PORT}`));
