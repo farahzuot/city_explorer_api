@@ -5,15 +5,18 @@
 const express = require('express');
 const cors = require('cors');
 const superagent = require('superagent');
-const pg  = require('pg');
+const pg = require('pg');
 require('dotenv').config();
+// id = luruFlCZb1y-VfHE09JyeA;
 
 
 const PORT = process.env.PORT || 3000;
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 const GEOCODE_API_KEY = process.env.GEOCODE_API_KEY;
 const TRAIL_API_KEY = process.env.TRAIL_API_KEY;
-const DATABASE_URL =  process.env.DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL;
+const MOVIES = process.env.MOVIES;
+const YELP = process.env.YELP;
 const client = new pg.Client(DATABASE_URL);
 
 
@@ -28,18 +31,11 @@ app.get('/location', locationHndler);
 app.get('/weather', weatherPage);
 
 //  trial Route
-app.get('/trails',trailsHandler);
+app.get('/trails', trailsHandler);
 //---------
+app.get('/movies', moviesHandler);
 
-// app.get('/get-locations', (req, res) => {
-//   const location = 'SELECT * FROM location ;';
-//   client.query(location).then(result => {
-//     res.status(200).json(result.rows);
-//   });
-// });
-
-// app.get('/add-location',locationHndler);
-
+app.get('/yelps', yelpsHandler);
 
 app.use('*', (req, res) => {
   res.status(404).send('Error');
@@ -55,6 +51,7 @@ function Location(city, locationData) {
   this.longitude = locationData[0].lon;
 }
 
+
 function Weather(weatherData) {
   this.forecast = weatherData.weather.description;
   this.time = weatherData.datetime;
@@ -62,16 +59,34 @@ function Weather(weatherData) {
 
 
 // Trail constructor
-function Trail(trailObj){
-  this.name=trailObj.name;
+function Trail(trailObj) {
+  this.name = trailObj.name;
   this.location = trailObj.location;
   this.length = trailObj.length;
   this.stars = trailObj.stars;
   this.star_votes = trailObj.starVotes;
   this.summary = trailObj.summary;
-  this.trail_url= trailObj.url;
+  this.trail_url = trailObj.url;
   this.conditions = trailObj.conditionDetails;
   this.condition_date = trailObj.conditionDate;
+}
+
+function Movie(movieObj) {
+  this.title = movieObj.title;
+  this.overview = movieObj.overview;
+  this.vote_average = movieObj.vote_average;
+  this.vote_count = movieObj.vote_count;
+  this.poster_path = movieObj.poster_path;
+  this.popularity = movieObj.popularity;
+  this.release_date = movieObj.release_date;
+}
+
+function Yelp(yelpObj) {
+  this.name = yelpObj.name;
+  this.image_url = yelpObj.image_url;
+  this.price = yelpObj.price;
+  this.rating = yelpObj.rating;
+  this.url = yelpObj.url;
 }
 
 
@@ -112,7 +127,7 @@ function locationHndler(request, response) {
       response.status(200).json(result.rows[0]);
     }
     else {
-      console.log('after catch');
+      //console.log('after catch');
       const url = `https://eu1.locationiq.com/v1/search.php?key=${GEOCODE_API_KEY}&q=${city}&format=json`;
       let locationArr;
       superagent.get(url).then(locationData => {
@@ -149,8 +164,12 @@ function weatherPage(req, res) {
 }
 
 
-function trailsHandler(reqeust, response){
-  const url = `https://www.hikingproject.com/data/get-trails?lat=40.0274&lon=-105.2519&maxDistance=10&key=200959308-d46bf86a332e86ae55bf43b6e24ea048`;
+function trailsHandler(reqeust, response) {
+  let lat=reqeust.query.latitude;
+  let lon=reqeust.query.longitude;
+  // console.log(lat);
+  const url = `https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${lon}&key=${TRAIL_API_KEY}`;
+  //console.log(url);
   superagent.get(url).then(trailsData => {
     let trail = trailsData.body.trails.map(Data => {
       return new Trail(Data);
@@ -159,13 +178,54 @@ function trailsHandler(reqeust, response){
   }).catch(console.error);
 }
 
-// function error(request, resp) {
-//   resp.status(500).send('Error ! ');
-// }
+
+
+function moviesHandler(request, response) {
+  let region =request.query.search_query.slice(0,2).toUpperCase();
+  const url = `https://api.themoviedb.org/3/movie/top_rated?api_key=${MOVIES}&region=${region}`;
+  superagent.get(url).then(moviesData => {
+    //console.log(moviesData.body.results);
+    let movie = moviesData.body.results.map(Data => {
+      //console.log(Data);
+      return new Movie(Data);
+    });
+    response.json(movie);
+    //console.log(movie);
+  }).catch(console.error);
+}
+
+
+
+function yelpsHandler(request, response) {
+  const region = request.query.search_query;
+  const longitude = request.query.longitude;
+  const latitude = request.query.latitude;
+  console.log(region);
+  const page=request.query.page;
+  let offset=5*(page-1);//for ordering
+  const url = `https://api.yelp.com/v3/businesses/search`;
+  //passing parameters
+  let queryParemeter={
+    location:region,
+    latitude:latitude,
+    longitude:longitude,
+    api_key:YELP,
+    offset:offset,
+    limit:5,
+    categories:'Restaurants',
+    format:'json'
+  };
+  superagent.get(url).query(queryParemeter).set('Authorization', `Bearer ${YELP}`).then(yelpsData => {
+    console.log(yelpsData.body);
+    let yelps = yelpsData.body.businesses.map((value) => {
+      return (new Yelp(value));
+    });
+    console.log('hiiiiii');
+    response.json(yelps);
+  }).catch(console.error);
+}
 
 client.connect().then(() => {
   app.listen(PORT, () => console.log(`Listening to port ${PORT}`));
-}).catch(error => {
-  console.log('error', error);
-});
+}).catch(console.error);
 
